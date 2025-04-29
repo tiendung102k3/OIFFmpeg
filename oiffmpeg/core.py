@@ -170,3 +170,83 @@ def get_media_info(input_file):
         logging.error(f"An error occurred while running ffprobe: {e}")
         raise
 
+
+
+def stream_video(input_source, rtmp_url, **kwargs):
+    """Streams a video from an input source (URL or file) to an RTMP endpoint.
+
+    This function typically runs until the input stream ends or is interrupted.
+
+    Args:
+        input_source: Path or URL to the input video/stream.
+        rtmp_url: The full RTMP URL (e.g., "rtmp://a.rtmp.youtube.com/live2/your-stream-key").
+        **kwargs: Additional FFmpeg options. Common options for streaming include:
+                  - re=True: (Recommended) Read input at native frame rate (-re).
+                  - c='copy': Use stream copy for video and audio codecs (fast, no re-encoding).
+                  - vcodec='libx264': Specify video codec for re-encoding.
+                  - acodec='aac': Specify audio codec for re-encoding.
+                  - f='flv': (Recommended) Force output format to FLV for RTMP.
+                  - preset='veryfast': H.264 encoding preset.
+                  - tune='zerolatency': H.264 tuning for low latency.
+                  - bufsiz='1000k': Set buffer size.
+                  - maxrate='500k': Set max bitrate.
+
+    Returns:
+        True if FFmpeg exits with code 0 (usually after stream ends or manual stop),
+        False otherwise.
+    """
+    command = ['ffmpeg']
+
+    # Add -re flag if specified (recommended for live streaming simulation)
+    if kwargs.pop('re', True):
+        command.append('-re')
+
+    # Input source
+    command.extend(['-i', input_source])
+
+    # Default to FLV format for RTMP, unless overridden
+    if 'f' not in kwargs:
+        kwargs['f'] = 'flv'
+
+    # Add custom options from kwargs
+    for key, value in kwargs.items():
+        if isinstance(value, bool) and value:
+            command.append(f'-{key}') # Handle boolean flags
+        elif value is not None:
+            command.extend([f'-{key}', str(value)])
+
+    # Output RTMP URL
+    command.append(rtmp_url)
+
+    # Use _run_ffmpeg_command which handles process execution and logging
+    # Note: This will block until ffmpeg finishes or is terminated.
+    ret_code, _, stderr = _run_ffmpeg_command(command)
+    return ret_code == 0
+
+
+
+def run_ffmpeg(arguments: list):
+    """Runs a custom FFmpeg command with the provided arguments.
+
+    This function provides a general interface to run any FFmpeg command by
+    passing the arguments directly. The 'ffmpeg' command itself should not be
+    included in the arguments list.
+
+    Args:
+        arguments: A list of strings representing the FFmpeg command arguments
+                   (e.g., ['-i', 'input.mp4', '-vf', 'scale=1280:720', 'output.mp4']).
+
+    Returns:
+        True if FFmpeg exits with code 0, False otherwise.
+    """
+    if not isinstance(arguments, list):
+        raise TypeError("arguments must be a list of strings")
+    if not all(isinstance(arg, str) for arg in arguments):
+        raise TypeError("All items in the arguments list must be strings")
+
+    command = ["ffmpeg"] + arguments
+
+    # Use _run_ffmpeg_command which handles process execution and logging
+    ret_code, _, stderr = _run_ffmpeg_command(command)
+    return ret_code == 0
+

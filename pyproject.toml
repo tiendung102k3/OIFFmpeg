@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oiffmpeg"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
   { name="Manus Team", email="contact@example.com" }, # Replace with actual contact if available
 ]
